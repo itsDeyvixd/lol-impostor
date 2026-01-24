@@ -11,33 +11,38 @@ const generarCodigo = () => {
   return codigo;
 };
 
-export const crearSala = async (nombreHost, avatarUrl) => { // Agregamos avatarUrl
+// 1. CREAR SALA CON TIEMPO CONFIGURABLE
+export const crearSala = async (nombreHost, avatarUrl, tiempoTurno = 30) => {
   const codigo = generarCodigo();
   await setDoc(doc(db, "salas", codigo), {
     codigo,
     estado: "LOBBY",
-    jugadores: [{ 
-      nombre: nombreHost, 
-      esHost: true, 
-      id: crypto.randomUUID(),
-      avatar: avatarUrl // Guardamos la foto
-    }],
+    config: { tiempoTurno: parseInt(tiempoTurno) }, // Guardamos la config (30, 60, etc)
+    jugadores: [{ nombre: nombreHost, esHost: true, id: crypto.randomUUID(), avatar: avatarUrl }],
   });
   return codigo;
 };
 
-export const unirseSala = async (codigo, nombreJugador, avatarUrl) => { // Agregamos avatarUrl
+export const unirseSala = async (codigo, nombreJugador, avatarUrl) => {
   const salaRef = doc(db, "salas", codigo);
   const salaSnap = await getDoc(salaRef);
-  if (!salaSnap.exists()) throw new Error("Sala no encontrada");
+  if (!salaSnap.exists()) throw new Error("La sala no existe");
+  const data = salaSnap.data();
+  if (data.estado !== "LOBBY") throw new Error("Partida ya iniciada.");
+  const existe = data.jugadores.some(j => j.nombre.toLowerCase() === nombreJugador.toLowerCase());
+  if (existe) throw new Error("Ese nombre ya está en uso.");
+
   await updateDoc(salaRef, {
-    jugadores: arrayUnion({ 
-      nombre: nombreJugador, 
-      esHost: false, 
-      id: crypto.randomUUID(),
-      avatar: avatarUrl // Guardamos la foto
-    })
+    jugadores: arrayUnion({ nombre: nombreJugador, esHost: false, id: crypto.randomUUID(), avatar: avatarUrl })
   });
+};
+
+export const salirDeSala = async (codigoSala, idJugador) => {
+  const salaRef = doc(db, "salas", codigoSala);
+  const salaSnap = await getDoc(salaRef);
+  if (!salaSnap.exists()) return;
+  const nuevosJugadores = salaSnap.data().jugadores.filter(j => j.id !== idJugador);
+  await updateDoc(salaRef, { jugadores: nuevosJugadores });
 };
 
 export const escucharSala = (codigo, callback) => onSnapshot(doc(db, "salas", codigo), (doc) => doc.exists() && callback(doc.data()));
@@ -47,9 +52,9 @@ export const iniciarPartida = async (codigoSala) => {
   const salaSnap = await getDoc(salaRef);
   const data = salaSnap.data();
 
-  const jugadores = data.jugadores;
-  const impostorId = jugadores[Math.floor(Math.random() * jugadores.length)].id;
-  
+  if (data.jugadores.length < 2) throw new Error("Mínimo 2 jugadores.");
+
+  const impostorId = data.jugadores[Math.floor(Math.random() * data.jugadores.length)].id;
   const listaCampeones = await obtenerCampeones();
   const campeonElegido = listaCampeones[Math.floor(Math.random() * listaCampeones.length)];
   const pistasMezcladas = [...campeonElegido.pistas].sort(() => Math.random() - 0.5);
@@ -62,46 +67,46 @@ export const iniciarPartida = async (codigoSala) => {
     campeonActual: campeonElegido,
     pistasImpostor: pistasMezcladas,
     mensajesRonda: [],
-    ordenTurnos: jugadores.map(j => j.id),
+    ordenTurnos: data.jugadores.map(j => j.id),
     turnoIndex: 0,
+    inicioTurno: Date.now(), // MARCA DE TIEMPO PARA EL TIMER
     votos: {}
   });
 };
 
-// --- AQUÍ ESTÁ LA NUEVA LÓGICA DE "ADIVINAR NOMBRE" ---
+// ENVIAR PISTA NORMAL
 export const enviarPistaTurno = async (codigoSala, nombreJugador, texto, turnoActual, totalJugadores) => {
   const salaRef = doc(db, "salas", codigoSala);
-  
-  // 1. Traemos los datos para verificar si es un intento de victoria
   const salaSnap = await getDoc(salaRef);
   const data = salaSnap.data();
-  const esImpostor = data.jugadores.find(j => j.nombre === nombreJugador).id === data.impostor;
-  
-  // Normalizamos textos (quitamos espacios y mayúsculas para comparar)
-  const textoLimpio = texto.trim().toLowerCase();
-  const nombreCampeon = data.campeonActual.nombre.toLowerCase();
 
-  // 2. ¿El Impostor adivinó el nombre?
-  if (esImpostor && textoLimpio === nombreCampeon) {
-    await updateDoc(salaRef, {
-      estado: "FINALIZADO",
-      ganador: "IMPOSTOR",
-      motivo: "ADIVINO", // Para mostrar un mensaje especial
-      expulsadoNombre: null
-    });
-    return; // Terminamos la función aquí
+  // Verificar victoria impostor (Snipe)
+  const esImpostor = data.jugadores.find(j => j.nombre === nombreJugador).id === data.impostor;
+  if (esImpostor && texto.trim().toLowerCase() === data.campeonActual.nombre.toLowerCase()) {
+    await updateDoc(salaRef, { estado: "FINALIZADO", ganador: "IMPOSTOR", motivo: "ADIVINO" });
+    return;
   }
 
-  // 3. Flujo normal (si no ganó)
-  await updateDoc(salaRef, {
-    mensajesRonda: arrayUnion({ nombre: nombreJugador, texto })
-  });
+  await updateDoc(salaRef, { mensajesRonda: arrayUnion({ nombre: nombreJugador, texto }) });
+  avanzarTurno(salaRef, turnoActual, totalJugadores);
+};
 
+// NUEVO: SALTAR TURNO POR TIEMPO (El Host llama a esto)
+export const saltarTurnoPorTiempo = async (codigoSala, turnoActual, totalJugadores) => {
+  const salaRef = doc(db, "salas", codigoSala);
+  // Agregamos mensaje de sistema
+  await updateDoc(salaRef, { mensajesRonda: arrayUnion({ nombre: "SISTEMA", texto: "⌛ Tiempo Agotado" }) });
+  avanzarTurno(salaRef, turnoActual, totalJugadores);
+};
+
+// Función auxiliar para avanzar (usada por las dos anteriores)
+const avanzarTurno = async (salaRef, turnoActual, totalJugadores) => {
   const siguienteTurno = turnoActual + 1;
   if (siguienteTurno >= totalJugadores) {
     await updateDoc(salaRef, { fase: "VOTACION", turnoIndex: -1 });
   } else {
-    await updateDoc(salaRef, { turnoIndex: siguienteTurno });
+    // Reseteamos el reloj para el siguiente
+    await updateDoc(salaRef, { turnoIndex: siguienteTurno, inicioTurno: Date.now() });
   }
 };
 
@@ -110,36 +115,20 @@ export const enviarVoto = async (codigoSala, miId, idVotado) => {
   await updateDoc(salaRef, { [`votos.${miId}`]: idVotado });
 };
 
-// --- AQUÍ ESTÁ LA NUEVA LÓGICA DE "SUPERVIVENCIA" ---
 export const procesarVotacion = async (codigoSala, resultados, rondaActual) => {
   const salaRef = doc(db, "salas", codigoSala);
-  
   if (resultados.expulsado) {
     await updateDoc(salaRef, { 
-      estado: "FINALIZADO",
-      ganador: resultados.esImpostor ? "TRIPULANTES" : "IMPOSTOR",
-      expulsadoNombre: resultados.nombreExpulsado,
-      motivo: "VOTACION"
+      estado: "FINALIZADO", ganador: resultados.esImpostor ? "TRIPULANTES" : "IMPOSTOR",
+      expulsadoNombre: resultados.nombreExpulsado, motivo: "VOTACION"
     });
   } else {
-    // Nadie fue expulsado.
-    
-    // ¿Ya pasamos la ronda 4? (Máximo de pistas) -> Gana Impostor por Supervivencia
     if (rondaActual >= 4) {
-      await updateDoc(salaRef, {
-        estado: "FINALIZADO",
-        ganador: "IMPOSTOR",
-        motivo: "TIEMPO", // Sobrevivió todas las rondas
-        expulsadoNombre: null
-      });
+      await updateDoc(salaRef, { estado: "FINALIZADO", ganador: "IMPOSTOR", motivo: "TIEMPO" });
     } else {
-      // Siguiente ronda normal
       await updateDoc(salaRef, {
-        fase: "PISTAS",
-        ronda: rondaActual + 1,
-        mensajesRonda: [],
-        turnoIndex: 0,
-        votos: {}
+        fase: "PISTAS", ronda: rondaActual + 1, mensajesRonda: [], 
+        turnoIndex: 0, inicioTurno: Date.now(), votos: {}
       });
     }
   }
@@ -147,21 +136,9 @@ export const procesarVotacion = async (codigoSala, resultados, rondaActual) => {
 
 export const reiniciarJuego = async (codigoSala) => {
   const salaRef = doc(db, "salas", codigoSala);
-  
-  // RESET TOTAL: Limpiamos todas las variables de juego para evitar bugs
   await updateDoc(salaRef, {
-    estado: "LOBBY",
-    campeonActual: null,
-    impostor: null,
-    fase: null,
-    ronda: 0,
-    mensajesRonda: [],
-    pistasImpostor: [],
-    ordenTurnos: [],
-    turnoIndex: 0,
-    votos: {},
-    ganador: null,
-    motivo: null,
-    expulsadoNombre: null
+    estado: "LOBBY", campeonActual: null, impostor: null, fase: null, ronda: 0,
+    mensajesRonda: [], pistasImpostor: [], ordenTurnos: [], turnoIndex: 0, votos: {},
+    ganador: null, motivo: null, expulsadoNombre: null
   });
 };
