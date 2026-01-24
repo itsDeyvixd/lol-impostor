@@ -1,0 +1,63 @@
+:root {
+  --hex-gold: #C8AA6E;
+  --hex-gold-dim: #785A28;
+  --hex-blue: #0AC8B9;
+  --hex-dark: #091428;
+  --hex-dark-2: #1E2328;
+  --hex-border: #463714;
+}
+
+body {
+  background-color: var(--hex-dark);
+  background-image: radial-gradient(circle at center, #1a2a3d 0%, #091428 100%);
+  color: #F0E6D2;
+  font-family: 'Roboto', sans-serif;
+  margin: 0;
+  min-height: 100vh;
+}
+
+h1, h2, h3, button {
+  font-family: 'Cinzel', serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+button {
+  background: linear-gradient(180deg, #1E2328 0%, #091428 100%);
+  border: 1px solid var(--hex-gold);
+  color: var(--hex-gold);
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 0 5px rgba(200, 170, 110, 0.2);
+}
+
+button:hover:not(:disabled) {
+  background: linear-gradient(180deg, #3a3a3a 0%, #1e1e1e 100%);
+  box-shadow: 0 0 15px var(--hex-gold-dim);
+  text-shadow: 0 0 5px var(--hex-gold);
+}
+
+button:disabled {
+  border-color: #555;
+  color: #555;
+  cursor: not-allowed;
+}
+
+input {
+  background: rgba(0,0,0,0.5);
+  border: 1px solid var(--hex-gold-dim);
+  color: white;
+  padding: 10px;
+  font-family: 'Roboto', sans-serif;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--hex-blue);
+  box-shadow: 0 0 10px rgba(10, 200, 185, 0.3);
+}
+
+/* Scrollbar personalizada */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb { background: var(--hex-gold-dim); border-radius: 4px; }
