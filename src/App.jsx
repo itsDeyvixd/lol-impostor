@@ -4,8 +4,7 @@ import {
   escucharSala, iniciarPartida, enviarPistaTurno, enviarVoto, procesarVotacion, reiniciarJuego, salirDeSala, saltarTurnoPorTiempo 
 } from './services/gameService';
 
-// --- CORRECCIÓN 1: SACAMOS EL COMPONENTE FUERA DE APP ---
-// Ahora recibe los datos que necesita como 'props'
+// --- COMPONENTE LISTA JUGADORES ---
 const ListaJugadores = ({ salaActual, miNombre }) => {
   return (
     <div style={{ 
@@ -15,15 +14,11 @@ const ListaJugadores = ({ salaActual, miNombre }) => {
     }}>
       <h4 style={{margin: '0 0 10px 0', color: '#C8AA6E', borderBottom: '1px solid #444', paddingBottom: '5px'}}>JUGADORES</h4>
       {salaActual.jugadores.map((jugador, index) => {
-        // Lógica visual
         let estadoClase = {};
         let iconoEstado = null;
         
-        // Ver si es su turno
         const idJugadorEnTurno = salaActual.ordenTurnos?.[salaActual.turnoIndex];
         const esSuTurno = salaActual.estado === "JUGANDO" && salaActual.fase === "PISTAS" && jugador.id === idJugadorEnTurno;
-        
-        // Ver si ya escribió
         const indiceJugador = salaActual.ordenTurnos?.indexOf(jugador.id);
         const yaEscribio = salaActual.estado === "JUGANDO" && salaActual.fase === "PISTAS" && indiceJugador < salaActual.turnoIndex;
 
@@ -57,8 +52,6 @@ const ListaJugadores = ({ salaActual, miNombre }) => {
 };
 
 function App() {
-  // --- CORRECCIÓN 2: INICIALIZACIÓN PEREZOSA (LAZY STATE) ---
-  // Leemos el sessionStorage DIRECTAMENTE al crear el estado, no en un useEffect
   const [codigoSala, setCodigoSala] = useState(() => {
     const sesion = sessionStorage.getItem("lol-impostor-session");
     return sesion ? JSON.parse(sesion).codigo : null;
@@ -75,9 +68,6 @@ function App() {
   const [miPista, setMiPista] = useState("");
   const [timer, setTimer] = useState(30);
 
-  // NOTA: Ya no necesitamos el useEffect que leía la sesión, porque lo hicimos arriba en el useState.
-
-  // ESCUCHAR SALA
   useEffect(() => {
     if (codigoSala) {
       const desuscribir = escucharSala(codigoSala, (datos) => {
@@ -87,7 +77,6 @@ function App() {
           setSoyHost(yo.esHost); 
           setMiId(yo.id); 
         } else { 
-          // Si me expulsaron o la sala murió
           sessionStorage.removeItem("lol-impostor-session"); 
           setSalaActual(null); 
           setCodigoSala(null); 
@@ -98,7 +87,6 @@ function App() {
     }
   }, [codigoSala, miNombre]);
 
-  // TIMER
   useEffect(() => {
     if (salaActual?.estado === "JUGANDO" && salaActual?.fase === "PISTAS") {
       const intervalo = setInterval(() => {
@@ -116,7 +104,6 @@ function App() {
     }
   }, [salaActual, soyHost, codigoSala]);
 
-  // VOTACIÓN HOST
   useEffect(() => {
     if (soyHost && salaActual?.fase === "VOTACION" && salaActual?.votos) {
       const total = salaActual.jugadores.length;
@@ -159,7 +146,7 @@ function App() {
 
   if (!salaActual) return <Lobby alEntrarEnSala={entrarEnSala} />;
 
-  // --- VISTA FINAL ---
+  // --- VISTAS DEL JUEGO ---
   if (salaActual.estado === "FINALIZADO") {
     return (
       <div style={{ textAlign: 'center', color: '#F0E6D2', padding: '50px' }}>
@@ -174,7 +161,6 @@ function App() {
     );
   }
 
-  // --- VISTA JUEGO ---
   if (salaActual.estado === "JUGANDO") {
     const soyImpostor = salaActual.impostor === miId;
     const fase = salaActual.fase;
@@ -193,14 +179,10 @@ function App() {
         </div>
 
         <div className="game-layout" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-          
-          {/* 1. SIDEBAR (Lista Jugadores - COMPONENTE EXTRAÍDO) */}
           <div style={{ order: 2 }}>
-             {/* PASAMOS LAS PROPS NECESARIAS */}
              <ListaJugadores salaActual={salaActual} miNombre={miNombre} />
           </div>
 
-          {/* 2. ÁREA DE JUEGO */}
           <div style={{ order: 1 }}>
             <div style={{ padding: '15px', borderRadius: '10px', backgroundColor: '#091428', border: `2px solid ${soyImpostor ? '#ff4d4d' : '#0AC8B9'}`, marginBottom: '20px' }}>
               {soyImpostor ? (
@@ -242,6 +224,17 @@ function App() {
             {fase === "VOTACION" && (
               <div style={{ marginTop: '20px', backgroundColor: '#1E2328', padding: '20px', borderRadius: '10px', border: '1px solid #ff4d4d' }}>
                 <h2>🗳️ VOTACIÓN</h2>
+                
+                {/* --- AQUÍ ESTÁ EL CAMBIO: HISTORIAL DE CHAT EN VOTACIÓN --- */}
+                <div style={{ textAlign: 'left', backgroundColor: 'rgba(0,0,0,0.5)', padding: '10px', borderRadius: '10px', marginBottom: '15px', maxHeight: '150px', overflowY: 'auto' }}>
+                  <h4 style={{ margin: '0 0 5px 0', color: '#C8AA6E', fontSize: '0.9rem' }}>📜 Historial de esta ronda:</h4>
+                  {salaActual.mensajesRonda?.map((msg, i) => (
+                    <div key={i} style={{ marginBottom: '5px', fontSize: '0.9rem' }}>
+                      <strong style={{ color: msg.nombre === "SISTEMA" ? 'yellow' : '#C8AA6E' }}>{msg.nombre}:</strong> {msg.texto}
+                    </div>
+                  ))}
+                </div>
+
                 {salaActual.votos?.[miId] ? <p>✅ Voto enviado.</p> : (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                     {salaActual.jugadores.map(j => j.id !== miId && <button key={j.id} onClick={() => handleVotar(j.id)} style={{ padding: '15px', border: '1px solid #555' }}>💀 {j.nombre}</button>)}
@@ -256,7 +249,7 @@ function App() {
     );
   }
 
-  // --- VISTA LOBBY ---
+  // --- LOBBY ---
   return (
     <div style={{ textAlign: 'center', color: '#F0E6D2', padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
       <button onClick={handleSalir} style={{ float: 'left', background: '#333', border: 'none', color: '#aaa' }}>← Salir</button>
