@@ -17,18 +17,39 @@ function Lobby({ alEntrarEnSala }) {
 
   const [mostrarReglas, setMostrarReglas] = useState(false); // --- NUEVO
 
-  useEffect(() => {
+useEffect(() => {
     const ICONOS_CLASICOS = [29, 502, 588, 6, 7, 28];
     const inicializar = async () => {
       try {
         const listaChamps = await obtenerCampeones();
         const version = "14.1.1";
+
+        // 1. Iconos Clásicos
         const listaClasicos = ICONOS_CLASICOS.map(id => ({
           id: `icon-${id}`,
           nombre: "Clásico",
           imagen: `https://ddragon.leagueoflegends.com/cdn/${version}/img/profileicon/${id}.png`
         }));
-        const listaFinal = [...listaClasicos, ...listaChamps];
+
+        // 2. TUS CAPRICHOS (Rakan <3)
+        const listaEspeciales = [
+          {
+            id: 'rakan-champie',
+            nombre: 'Rakan Chibi',
+            // Usamos este link directo de la Wiki que suele ser estable
+            imagen: 'https://wiki.leagueoflegends.com/en-us/images/Champie_Rakan_profileicon.png?606b1'
+          },
+          {
+            id: 'rakan-sg',
+            nombre: 'Rakan SG',
+            // ID 3587 es el icono de Rakan Star Guardian
+            imagen: `https://ddragon.leagueoflegends.com/cdn/${version}/img/profileicon/3587.png`
+          }
+        ];
+
+        // 3. Mezclamos: Clasicos -> Especiales -> Resto
+        const listaFinal = [...listaClasicos, ...listaEspeciales, ...listaChamps];
+        
         setAvatares(listaFinal); 
         if (listaFinal.length > 0) setAvatarSeleccionado(listaFinal[0].imagen);
         setCargandoAvatares(false);
