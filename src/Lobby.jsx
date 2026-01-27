@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { crearSala, unirseSala } from './services/gameService';
 import { obtenerCampeones } from './services/riotService';
+import Footer from './Footer';
+import ReglasModal from './components/ReglasModal'; // --- NUEVO
 
 function Lobby({ alEntrarEnSala }) {
   const [nombre, setNombre] = useState("");
@@ -12,6 +14,8 @@ function Lobby({ alEntrarEnSala }) {
   const [avatares, setAvatares] = useState([]);
   const [avatarSeleccionado, setAvatarSeleccionado] = useState(null);
   const [cargandoAvatares, setCargandoAvatares] = useState(true);
+
+  const [mostrarReglas, setMostrarReglas] = useState(false); // --- NUEVO
 
   useEffect(() => {
     const ICONOS_CLASICOS = [29, 502, 588, 6, 7, 28];
@@ -59,7 +63,62 @@ function Lobby({ alEntrarEnSala }) {
 
   return (
     <div style={{ textAlign: 'center', marginTop: '30px', padding: '20px' }}>
-      <h1 style={{ fontSize: '3rem', color: '#C8AA6E', textShadow: '0 0 10px #785A28' }}>LoL Impostor</h1>
+      
+      {/* HEADER CON BOTÓN DE REGLAS */}
+{/* HEADER CORREGIDO: FLEXBOX PARA ALINEACIÓN PERFECTA */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        gap: '20px', // Espacio seguro entre Título y Botón
+        marginBottom: '30px',
+        flexWrap: 'wrap' // En móviles muy pequeños, el botón bajará ordenadamente
+      }}>
+          <h1 style={{ 
+            fontSize: '3rem', 
+            color: '#C8AA6E', 
+            textShadow: '0 0 10px #785A28', 
+            margin: 0, // Quitamos margen para que se alinee con el botón
+            lineHeight: 1
+          }}>
+            LoL Impostor
+          </h1>
+          
+          <button 
+            onClick={() => setMostrarReglas(true)}
+            style={{
+              // ESTILO HEXTECH RECTANGULAR
+              background: '#091428', 
+              border: '1px solid #C8AA6E', 
+              color: '#C8AA6E',
+              borderRadius: '4px',
+              padding: '8px 15px', // Un poco más grande para que respire
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '0.8rem',
+              fontFamily: 'Roboto, sans-serif',
+              letterSpacing: '1px',
+              boxShadow: '0 0 5px rgba(200, 170, 110, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.2s',
+              height: 'fit-content' // Para que no se estire raro
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = '#1E2328';
+              e.currentTarget.style.boxShadow = '0 0 15px #C8AA6E'; // Más brillo al pasar el mouse
+              e.currentTarget.style.transform = 'translateY(-2px)'; // Efecto de elevación
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = '#091428';
+              e.currentTarget.style.boxShadow = '0 0 5px rgba(200, 170, 110, 0.2)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            <span style={{fontSize: '1.2rem'}}>📜</span> REGLAS
+          </button>
+      </div>
       
       <div style={{ maxWidth: '400px', margin: '0 auto', backgroundColor: '#091428', border: '2px solid #C8AA6E', padding: '30px', borderRadius: '4px', boxShadow: '0 0 20px rgba(0,0,0,0.8)' }}>
         
@@ -76,24 +135,10 @@ function Lobby({ alEntrarEnSala }) {
 
         <input type="text" placeholder="Tu Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} style={{ width: '90%', marginBottom: '20px', fontSize: '1.1rem', textAlign: 'center' }} />
 
-        {/* SELECTOR DE TIEMPO ESTILIZADO (HEX TECH) */}
         {!codigoSala && (
           <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
              <label style={{color: '#C8AA6E', fontWeight: 'bold'}}>⏱️ Turno:</label>
-             <select 
-               value={tiempoConfig} 
-               onChange={(e) => setTiempoConfig(e.target.value)} 
-               style={{ 
-                 padding: '8px', 
-                 borderRadius: '4px',
-                 backgroundColor: '#091428',
-                 color: '#F0E6D2',
-                 border: '1px solid #C8AA6E',
-                 fontFamily: 'Roboto',
-                 cursor: 'pointer',
-                 outline: 'none'
-               }}
-             >
+             <select value={tiempoConfig} onChange={(e) => setTiempoConfig(e.target.value)} style={{ padding: '8px', borderRadius: '4px', backgroundColor: '#091428', color: '#F0E6D2', border: '1px solid #C8AA6E', fontFamily: 'Roboto', cursor: 'pointer', outline: 'none' }}>
                <option value="15">🔥 15s (Flash)</option>
                <option value="30">⚖️ 30s (Normal)</option>
                <option value="45">🤔 45s (Pensar)</option>
@@ -119,7 +164,13 @@ function Lobby({ alEntrarEnSala }) {
           </div>
         )}
       </div>
+      
       {error && <p style={{ color: '#ff4d4d', marginTop: '20px' }}>{error}</p>}
+      
+      <Footer />
+      
+      {/* --- NUEVO: MODAL EN EL LOGIN --- */}
+      {mostrarReglas && <ReglasModal cerrar={() => setMostrarReglas(false)} />}
     </div>
   );
 }

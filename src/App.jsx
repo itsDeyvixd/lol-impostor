@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import Lobby from './Lobby';
+import Footer from './Footer'; // Asegúrate de tener el Footer del paso anterior
+import ReglasModal from './components/ReglasModal'; // --- NUEVO: Importar Modal
+
 import { 
   escucharSala, iniciarPartida, enviarPistaTurno, enviarVoto, procesarVotacion, reiniciarJuego, salirDeSala, saltarTurnoPorTiempo 
 } from './services/gameService';
@@ -67,6 +70,8 @@ function App() {
   const [miId, setMiId] = useState(null);
   const [miPista, setMiPista] = useState("");
   const [timer, setTimer] = useState(30);
+  
+  const [mostrarReglas, setMostrarReglas] = useState(false); // --- NUEVO: Estado para el modal
 
   useEffect(() => {
     if (codigoSala) {
@@ -146,12 +151,23 @@ function App() {
 
   if (!salaActual) return <Lobby alEntrarEnSala={entrarEnSala} />;
 
-  // --- VISTAS DEL JUEGO ---
+  // --- VISTA FINAL (GAME OVER) ---
   if (salaActual.estado === "FINALIZADO") {
+    const ganaronTripulantes = salaActual.ganador === "TRIPULANTES";
+    
+    // --- NUEVO: ENCONTRAR EL NOMBRE DEL IMPOSTOR PARA MOSTRARLO ---
+    const nombreImpostor = salaActual.jugadores.find(j => j.id === salaActual.impostor)?.nombre || "Desconocido";
+
     return (
       <div style={{ textAlign: 'center', color: '#F0E6D2', padding: '50px' }}>
-        <h1 style={{ color: salaActual.ganador === "TRIPULANTES" ? '#0AC8B9' : '#ff4d4d' }}>Ganan los {salaActual.ganador}</h1>
+        <h1 style={{ color: ganaronTripulantes ? '#0AC8B9' : '#ff4d4d' }}>Ganan los {salaActual.ganador}</h1>
         <h3>{salaActual.motivo}</h3>
+        
+        {/* --- NUEVO: MOSTRAR QUIÉN ERA EL IMPOSTOR --- */}
+        <div style={{ margin: '15px 0', fontSize: '1.2rem' }}>
+          🕵️ El Impostor era: <strong style={{color: '#ff4d4d', textTransform: 'uppercase'}}>{nombreImpostor}</strong>
+        </div>
+
         <div style={{ margin: '30px auto', padding: '20px', backgroundColor: '#091428', border: '1px solid #C8AA6E', width: 'fit-content', borderRadius: '10px' }}>
           <img src={salaActual.campeonActual.imagen} style={{ borderRadius: '50%', border: '3px solid #C8AA6E', width: '100px' }} alt="campeon" />
           <h2 style={{ color: '#C8AA6E' }}>{salaActual.campeonActual.nombre}</h2>
@@ -161,6 +177,7 @@ function App() {
     );
   }
 
+  // --- VISTA JUEGO ---
   if (salaActual.estado === "JUGANDO") {
     const soyImpostor = salaActual.impostor === miId;
     const fase = salaActual.fase;
@@ -225,7 +242,6 @@ function App() {
               <div style={{ marginTop: '20px', backgroundColor: '#1E2328', padding: '20px', borderRadius: '10px', border: '1px solid #ff4d4d' }}>
                 <h2>🗳️ VOTACIÓN</h2>
                 
-                {/* --- AQUÍ ESTÁ EL CAMBIO: HISTORIAL DE CHAT EN VOTACIÓN --- */}
                 <div style={{ textAlign: 'left', backgroundColor: 'rgba(0,0,0,0.5)', padding: '10px', borderRadius: '10px', marginBottom: '15px', maxHeight: '150px', overflowY: 'auto' }}>
                   <h4 style={{ margin: '0 0 5px 0', color: '#C8AA6E', fontSize: '0.9rem' }}>📜 Historial de esta ronda:</h4>
                   {salaActual.mensajesRonda?.map((msg, i) => (
@@ -249,12 +265,81 @@ function App() {
     );
   }
 
-  // --- LOBBY ---
+// --- LOBBY (Sala de Espera) ---
   return (
     <div style={{ textAlign: 'center', color: '#F0E6D2', padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
-      <button onClick={handleSalir} style={{ float: 'left', background: '#333', border: 'none', color: '#aaa' }}>← Salir</button>
-      <h2 style={{ color: '#C8AA6E', clear: 'both' }}>SALA DE ESPERA</h2>
-      <div style={{ fontSize: '3rem', fontFamily: 'Cinzel', border: '1px solid #C8AA6E', display: 'inline-block', padding: '0 20px' }}>{salaActual.codigo}</div>
+      
+      {/* HEADER MEJORADO: SALIR + TÍTULO + REGLAS */}
+      <div style={{ position: 'relative', marginBottom: '30px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        
+        {/* 1. Botón Salir (Absoluto a la izquierda) */}
+        <button 
+          onClick={handleSalir} 
+          style={{ 
+            position: 'absolute', 
+            left: 0, 
+            background: 'transparent', 
+            border: 'none', 
+            color: '#666', 
+            cursor: 'pointer',
+            fontSize: '0.9rem',
+            fontWeight: 'bold',
+            zIndex: 10,
+            transition: 'color 0.2s'
+          }}
+          onMouseOver={(e) => e.target.style.color = '#ff4d4d'}
+          onMouseOut={(e) => e.target.style.color = '#666'}
+        >
+          ← SALIR
+        </button>
+
+        {/* 2. Contenedor Central (Título + Botón Reglas) */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          gap: '15px', 
+          flexWrap: 'wrap'
+        }}>
+           <h2 style={{ color: '#C8AA6E', margin: 0, fontSize: '2rem', textShadow: '0 0 10px #785A28' }}>SALA DE ESPERA</h2>
+           
+           {/* Botón Hextech Rectangular */}
+           <button 
+            onClick={() => setMostrarReglas(true)}
+            style={{
+              background: '#091428', 
+              border: '1px solid #C8AA6E', 
+              color: '#C8AA6E',
+              borderRadius: '4px',
+              padding: '6px 12px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '0.75rem',
+              fontFamily: 'Roboto, sans-serif',
+              letterSpacing: '1px',
+              boxShadow: '0 0 5px rgba(200, 170, 110, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = '#1E2328';
+              e.currentTarget.style.boxShadow = '0 0 10px #C8AA6E';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = '#091428';
+              e.currentTarget.style.boxShadow = '0 0 5px rgba(200, 170, 110, 0.2)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            <span style={{fontSize: '1rem'}}>📜</span> REGLAS
+          </button>
+        </div>
+      </div>
+
+      <div style={{ fontSize: '3rem', fontFamily: 'Cinzel', border: '1px solid #C8AA6E', display: 'inline-block', padding: '0 20px', backgroundColor: 'rgba(0,0,0,0.3)' }}>{salaActual.codigo}</div>
       <div style={{marginTop:'10px'}}><button onClick={copiarLink}>🔗 Copiar Link</button></div>
 
       <div style={{ margin: '30px 0' }}>
@@ -262,14 +347,19 @@ function App() {
         <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' }}>
           {salaActual.jugadores.map(j => (
             <div key={j.id} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <img src={j.avatar || "https://ddragon.leagueoflegends.com/cdn/14.1.1/img/profileicon/29.png"} style={{ width: '60px', borderRadius: '50%', border: j.esHost?'3px solid gold':'3px solid #444' }} alt="avatar" />
-              <span>{j.nombre}</span>
-              {soyHost && !j.esHost && <button onClick={() => handleExpulsar(j.id, j.nombre)} style={{position:'absolute', top:0, right:-5, background:'red', borderRadius:'50%', width:'20px', height:'20px', padding:0}}>X</button>}
+              <img src={j.avatar || "https://ddragon.leagueoflegends.com/cdn/14.1.1/img/profileicon/29.png"} style={{ width: '60px', borderRadius: '50%', border: j.esHost?'3px solid gold':'3px solid #444', boxShadow: j.esHost ? '0 0 15px gold' : 'none' }} alt="avatar" />
+              <span style={{ marginTop: '5px' }}>{j.nombre}</span>
+              {soyHost && !j.esHost && <button onClick={() => handleExpulsar(j.id, j.nombre)} style={{position:'absolute', top:0, right:-5, background:'red', borderRadius:'50%', width:'20px', height:'20px', padding:0, border:'1px solid white', color:'white', cursor:'pointer'}}>X</button>}
             </div>
           ))}
         </div>
       </div>
-      {soyHost ? <button onClick={() => iniciarPartida(codigoSala)} style={{ padding: '15px 40px', fontSize: '1.5rem' }}>INICIAR PARTIDA</button> : <p>Esperando...</p>}
+      
+      {soyHost ? <button onClick={() => iniciarPartida(codigoSala)} style={{ padding: '15px 40px', fontSize: '1.5rem', backgroundColor: '#091428', border: '2px solid #0AC8B9', color: '#0AC8B9' }}>INICIAR PARTIDA</button> : <p style={{color: '#888', fontStyle: 'italic'}}>Esperando al líder...</p>}
+
+      <Footer />
+      
+      {mostrarReglas && <ReglasModal cerrar={() => setMostrarReglas(false)} />}
     </div>
   );
 }

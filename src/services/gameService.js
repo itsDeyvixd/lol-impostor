@@ -11,13 +11,12 @@ const generarCodigo = () => {
   return codigo;
 };
 
-// 1. CREAR SALA CON TIEMPO CONFIGURABLE
 export const crearSala = async (nombreHost, avatarUrl, tiempoTurno = 30) => {
   const codigo = generarCodigo();
   await setDoc(doc(db, "salas", codigo), {
     codigo,
     estado: "LOBBY",
-    config: { tiempoTurno: parseInt(tiempoTurno) }, // Guardamos la config (30, 60, etc)
+    config: { tiempoTurno: parseInt(tiempoTurno) },
     jugadores: [{ nombre: nombreHost, esHost: true, id: crypto.randomUUID(), avatar: avatarUrl }],
   });
   return codigo;
@@ -52,7 +51,8 @@ export const iniciarPartida = async (codigoSala) => {
   const salaSnap = await getDoc(salaRef);
   const data = salaSnap.data();
 
-  if (data.jugadores.length < 2) throw new Error("Mínimo 2 jugadores.");
+  // --- CAMBIO AQUÍ: MÍNIMO 3 JUGADORES ---
+  if (data.jugadores.length < 3) throw new Error("Se necesitan al menos 3 jugadores para iniciar.");
 
   const impostorId = data.jugadores[Math.floor(Math.random() * data.jugadores.length)].id;
   const listaCampeones = await obtenerCampeones();
@@ -69,18 +69,16 @@ export const iniciarPartida = async (codigoSala) => {
     mensajesRonda: [],
     ordenTurnos: data.jugadores.map(j => j.id),
     turnoIndex: 0,
-    inicioTurno: Date.now(), // MARCA DE TIEMPO PARA EL TIMER
+    inicioTurno: Date.now(),
     votos: {}
   });
 };
 
-// ENVIAR PISTA NORMAL
 export const enviarPistaTurno = async (codigoSala, nombreJugador, texto, turnoActual, totalJugadores) => {
   const salaRef = doc(db, "salas", codigoSala);
   const salaSnap = await getDoc(salaRef);
   const data = salaSnap.data();
 
-  // Verificar victoria impostor (Snipe)
   const esImpostor = data.jugadores.find(j => j.nombre === nombreJugador).id === data.impostor;
   if (esImpostor && texto.trim().toLowerCase() === data.campeonActual.nombre.toLowerCase()) {
     await updateDoc(salaRef, { estado: "FINALIZADO", ganador: "IMPOSTOR", motivo: "ADIVINO" });
@@ -91,21 +89,17 @@ export const enviarPistaTurno = async (codigoSala, nombreJugador, texto, turnoAc
   avanzarTurno(salaRef, turnoActual, totalJugadores);
 };
 
-// NUEVO: SALTAR TURNO POR TIEMPO (El Host llama a esto)
 export const saltarTurnoPorTiempo = async (codigoSala, turnoActual, totalJugadores) => {
   const salaRef = doc(db, "salas", codigoSala);
-  // Agregamos mensaje de sistema
   await updateDoc(salaRef, { mensajesRonda: arrayUnion({ nombre: "SISTEMA", texto: "⌛ Tiempo Agotado" }) });
   avanzarTurno(salaRef, turnoActual, totalJugadores);
 };
 
-// Función auxiliar para avanzar (usada por las dos anteriores)
 const avanzarTurno = async (salaRef, turnoActual, totalJugadores) => {
   const siguienteTurno = turnoActual + 1;
   if (siguienteTurno >= totalJugadores) {
     await updateDoc(salaRef, { fase: "VOTACION", turnoIndex: -1 });
   } else {
-    // Reseteamos el reloj para el siguiente
     await updateDoc(salaRef, { turnoIndex: siguienteTurno, inicioTurno: Date.now() });
   }
 };
