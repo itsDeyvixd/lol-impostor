@@ -42,7 +42,7 @@ El objetivo es descubrir al mentiroso a través de preguntas y pistas, mientras 
 
 ## 🛠️ Tecnologías Usadas
 
-* **Frontend:** React.js (Vite)
+* **Frontend:** React.js + (Vite)
 * **Backend / DB:** Firebase Firestore (NoSQL, Realtime updates)
 * **Estilos:** CSS3 (Variables, Flexbox, Grid, Animaciones)
 * **Deploy:** Vercel CI/CD
