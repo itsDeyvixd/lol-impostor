@@ -85,4 +85,4 @@ Desarrollado con ❤️ y mucho café por **Deyvi Ardila Forero**.
 
 ---
 
-_Este proyecto no está afiliado con Riot Games. League of Legends y sus recursos son propiedad de Riot Games, Inc._
+_Este proyecto no está afiliado con **Riot Games**. League of Legends y sus recursos son propiedad de Riot Games, Inc._
