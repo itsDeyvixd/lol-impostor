@@ -52,7 +52,7 @@ El objetivo es descubrir al mentiroso a través de preguntas y pistas, mientras 
 
 ## ⚙️ Instalación Local
 
-Si deseas clonar y correr este proyecto en tu máquina:
+Si deseas clonar y correr este proyecto en tu máquina :
 
 1.  **Clonar el repositorio**
     ```bash
